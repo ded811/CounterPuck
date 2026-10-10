@@ -1,0 +1,9 @@
+The documentation in this repository (the docs/ directory and README.md) is
+licensed under the Creative Commons Attribution 4.0 International License
+(CC BY 4.0): https://creativecommons.org/licenses/by/4.0/
+
+The code in tools/ is licensed separately under the MIT License; see LICENSE.
+
+This repository contains no Valve Corporation firmware, binaries, or other
+copyrighted assets. References to Valve file names and hashes are factual
+identifiers, not redistributed content.

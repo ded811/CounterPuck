@@ -1,0 +1,56 @@
+# Everything that must never be published lives under private/ or decomp/:
+#   Valve's firmware + updater (copyrighted), USB captures (contain the full image),
+#   decompiler output (a derivative of Valve's firmware), and unredacted notes/photos.
+# Readers get the originals from their own Steam install: docs/firmware-format.md has the
+# path and SHA-256 hashes.
+private/
+decomp/
+
+# --- Safety net: Valve files or derivatives that land somewhere else by mistake ---
+# Firmware images and the updater
+*.fw
+PROTEUS_FW_*
+IBEX_FW_*
+hardwareupdater.exe
+hardwareupdater.cfg
+# What tools/pyi_extract.py produces from the updater bundle
+*.code
+*.marshal
+*.pyz
+*.pyd
+*.dll
+*.exe
+base_library.zip
+# USB captures (contain the full firmware image and device serials)
+*.pcap
+*.pcapng
+*.cap
+# Raw images, dumps and build outputs
+*.bin
+*.hex
+*.elf
+*.map
+# Ghidra projects and decompiler exports
+*.gpr
+*.rep/
+*.lock
+*.lock~
+*decompiled*
+
+# --- Local working files ---
+# Claude Code's working context (personal notes, not part of the write-up)
+CLAUDE.md
+.claude/
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+# Zephyr / build directories (for the future firmware)
+build/
