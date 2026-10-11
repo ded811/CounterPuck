@@ -36,6 +36,13 @@ base_library.zip
 *.lock
 *.lock~
 *decompiled*
+# ...and what the other tools/Ghidra*.java scripts write, plus a naming table built from them
+*_named.c
+*_named.csv
+functions*.csv
+xrefs.tsv
+strings.txt
+names.json
 
 # --- Local working files ---
 # Claude Code's working context (personal notes, not part of the write-up)

@@ -119,5 +119,12 @@ To export everything without the GUI, use the headless analyzer with
     -scriptPath "$PWD\tools" -postScript GhidraExport.java "$PWD\decomp\out"
 ```
 
+Three more headless scripts in `tools/` help with a deeper pass, each taking its arguments after
+the script name like `GhidraExport.java`: `GhidraCreateFunctions.java` (a text file of addresses,
+one per line, to turn into functions), `GhidraXrefDump.java` (an output folder for `xrefs.tsv`)
+and `GhidraApplyNames.java` (a JSON naming table you write yourself, in the format shown at the
+top of the script, and an output folder for the re-export). What these scripts write is derived
+from the firmware too, so keep it under `decomp/` as well.
+
 Decompiler output is derived from Valve's copyrighted firmware. `decomp/` is gitignored; don't
 publish what's in it.

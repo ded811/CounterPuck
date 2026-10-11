@@ -27,8 +27,8 @@ The log also names a work item `CTritonDockedToPuckWorkItem`, which is the first
 Valve's codename for the controller: **Triton**.
 
 The chip is a Nordic **nRF52833** (marking `N52833 QDAAB0`), on a board silkscreened
-`ZV7_E5K5_Puck_Board R01`. These details come from teardown photos of the puck, not mine.
-<!-- TODO: link the source of the teardown photos -->
+`ZV7_E5K5_Puck_Board R01`. These details come from the photos in
+[iFixit's teardown](https://www.ifixit.com/Teardown/Steam+Controller+(2nd+Generation)+Wireless+Puck+Teardown/217571) of the puck (steps 5 and 7), not from mine.
 
 ## 2. The firmware was already on disk
 
@@ -65,7 +65,8 @@ Both files start with the same shape of 32-byte header:
 After the header is a normal Cortex-M vector table: a stack pointer in RAM (`0x20015D00`) and
 Thumb-mode handler addresses. The data averages 5.4 bits/byte of entropy, and readable strings
 are everywhere. That's ordinary compiled code, neither encrypted nor compressed. The strings
-also give away the toolchain: **nRF Connect SDK v2.9.0** and **Zephyr**.
+also give away the toolchain: **nRF Connect SDK v2.9.0** and **Zephyr**, from Valve's own forks of
+both (the commits they name aren't in Nordic's public repositories).
 
 Details: [firmware-format.md](firmware-format.md).
 
@@ -136,8 +137,9 @@ I then compared the HID side with SDL, which carries an open-source driver for t
 Steam Controller. Its `controller_constants.h` has the same command IDs (`0x83`, `0xAE`,
 `0x87`, `0xB4`). Its attribute enum numbers line up exactly with the tags the puck returned:
 product ID, capabilities, firmware build time, board revision and bootloader build time. The
-puck reuses the original controller's HID command set. The one command SDL doesn't name is
-`0x90`, reboot to bootloader.
+puck reuses the original controller's HID command set. The one command the updater sent that SDL
+doesn't name is `0x90`, reboot to bootloader; before the updater ran, Steam also read each slot's
+pairing record with `0xA3`, another command SDL doesn't have.
 
 Byte-level details: [update-protocol.md](update-protocol.md).
 
@@ -152,6 +154,30 @@ So the app is linked at `0x8000`. The first 32 KB of the chip's 512 KB flash bel
 bootloader, which matches what the update showed: the bootloader is a separate program that
 updates never touch.
 
+## 7. Inside the firmware
+
+With the image loaded in Ghidra at `0x8000`, the strings do most of the work: Zephyr names its
+log modules, devices, shell commands and settings keys, and Valve's own code logs generously.
+From those, plus the static tables Zephyr emits, it was possible to map out the USB device,
+the twelve vendor HID commands (including pairing and bond transfer), the radio configuration
+and the pairing/connection sequence, the bootloader handshake through a RAM mailbox, and how
+the dock detects and talks to a seated controller. All of that is written up as protocol facts
+in [puck-internals.md](puck-internals.md); no firmware code is reproduced.
+
+The SDK commits in the boot banner aren't public, so I also worked out what Valve changed in its
+fork. Strings missing from the image, such as per-transfer USB log lines that stock NCS 2.9.0
+prints, pointed at candidates. For each one I compiled the stock NCS 2.9.0 source with the same
+compiler, with and without the candidate change, and compared the machine code with the image
+function by function. A right guess matches byte for byte. That turned up two backported upstream
+Zephyr fixes (13 quieter USB log lines, a shell lock timeout) and Valve's own changes: more
+quieted USB log lines, the USB HID class, the USB driver, CDC-ACM, the kernel's device start-up
+and the sensor API. The list, with the build configuration that also shows in the code, is in
+[puck-internals.md](puck-internals.md#software-stack).
+
+The same analysis gives the pin map, power setup and memory split that a compatible board needs,
+and it shows that the app leaves the debug port the way the factory configured it
+([puck-internals.md](puck-internals.md#hardware-for-compatible-boards)).
+
 ## What's still open
 
 - **Bootloader checks.** The file and the messages carry a magic, a length and a CRC32, and no
@@ -159,10 +185,14 @@ updates never touch.
   I won't with the only puck I have.
 - **The `0x12` byte** that follows every message ID from the host.
 - **`28DE:1005`.** It's presumably the controller's bootloader, but unconfirmed.
-- **Nereid**, the third device type in the updater.
-- **The `0xB4` reply** Steam reads after the puck reconnects.
-- **The radio link** between puck and controller (Nordic ESB) and how pairing works. That's
-  next, and it's where [OpenPuck](https://github.com/safijari/openpuck) has already done a lot.
+- **The debug port.** The app leaves it as UICR says
+  ([puck-internals.md](puck-internals.md#debug-port)). Whether the factory left it open needs a
+  read-only probe, which I haven't connected.
+- **Nereid**, the third device type in the updater: identified in the firmware as board
+  revision `0x44` (see [puck-internals.md](puck-internals.md)); the product itself is unknown.
+- **The radio link** between puck and controller (Nordic ESB) and pairing are mapped from the
+  firmware ([puck-internals.md](puck-internals.md)); confirming them on real hardware is next,
+  and it's where [OpenPuck](https://github.com/safijari/openpuck) has already done a lot.
 - **Linux and macOS**: I only looked at the Windows client.
 
 The app build the puck shipped with (2026-06-30) is gone: the update overwrote it, and it was

@@ -35,7 +35,7 @@ I haven't checked the Linux or macOS clients.
 | **Proteus** | The puck (USB dongle and charging dock) | Boot banner `Starting Proteus BUILD_TIME_%08x GIT_SHA_%s`; strings `hid-puck`, `udc_nrfx`, `esb/ibex_0..3`; contains the `28DE:1304` USB device descriptor |
 | **Ibex** | The controller's radio firmware | Boot banner `Starting Triton BUILD_TIME_...`; strings `ST_PUCK_KEYCHORD_ESB_entry`, `Connecting to: Proteus %s` |
 | **Triton** | The controller as a product | Steam's controller log (`CTritonDockedToPuckWorkItem`); the config key `TRITON_FW_TS` names the IBEX file |
-| **Nereid** | Unknown | The updater knows a device type `Nereid USB` and groups it with Proteus as a "dongle" |
+| **Nereid** | Board revision `0x44` of the puck firmware (USB PID `0x1305`); the product itself is unknown | The updater knows a device type `Nereid USB` and groups it with Proteus as a "dongle"; the puck firmware logs `Failed to set Nereid USB PID` and uses PID `0x1305` on board revision `0x44` ([puck-internals.md](puck-internals.md#nereid)) |
 
 ## Versions are build timestamps
 
@@ -95,10 +95,36 @@ base on a 256-byte grid. `0x8000` scored 491 hits and the runner-up 44
 
 | Range | Contents | Source |
 | --- | --- | --- |
-| `0x00000`–`0x07FFF` | Bootloader (32 KB) | Implied by the app base; not in any Steam file |
-| `0x08000`–`0x38557` | Application (this payload, 197,976 bytes) | `.fw` payload |
-| above the app | Free space, settings, pairing records, stored header | Not in any Steam file; layout unknown |
-| `0x20000000`– | RAM; app stack top at `0x20015D00` | Vector table |
+| `0x00000`–`0x07FFF` | Bootloader (32 KB), flash area 0 | Not in any Steam file; size from the app's flash map |
+| `0x08000`–`0x7CFFF` | Application partition (0x75000), flash area 1; the payload (197,976 bytes) fills `0x08000`–`0x38557` | `.fw` payload; flash map |
+| `0x7D000`–`0x7FFFF` | Settings / NVS (12 KB), flash area 2: pairing records, reset-reason record | The app's flash map |
+| `0x20000000`–`0x2001FBFF` | RAM used by the app (127 KB); stack top at `0x20015D00` | Vector table; MPU setup |
+| `0x2001FC00`–`0x2001FEFF` | Not used by the app | App's RAM end |
+| `0x2001FF00`–`0x2001FFFF` | No-init RAM shared with the bootloader (reboot request, crash record) | App code |
+
+The flash map comes from the app itself: Zephyr's fixed flash-area table in the image lists exactly
+these three areas on the internal flash controller. Where the bootloader keeps the stored `.fw`
+header it reports back during an update is still unknown.
+
+### App header (payload `+0x100`)
+
+Right after the 64-entry vector table, at payload offset `0x100` (flash `0x8100`), sits a 40-byte
+header. The controller's IBEX image has the same header at the same offset, with the same
+constants and git hash and only its own build time.
+
+| Offset | Size | PROTEUS value | Meaning |
+| --- | --- | --- | --- |
+| `+0x00` | 8 | `0x7EA46046`, `0xB9863E5A` | Magic words |
+| `+0x08` | 4 | `0x000D1805` | Unknown (same in IBEX) |
+| `+0x0C` | 16 | `fec01234c8af` + NULs | Git short hash of the build |
+| `+0x1C` | 4 | `06 0A 04 00` | Unknown, possibly a version (same in IBEX) |
+| `+0x20` | 4 | `0x6A628359` | Build time (Unix seconds), the same value as the file name and HID attribute 4 |
+| `+0x24` | 4 | `FF FF 00 00` | Unknown (same in IBEX) |
+
+The app itself only reads the git hash and the build time from it: for HID attribute 4, string
+attribute 3, the device-info reply of HID command `0xF2`, the boot banner, and the crash
+(reset-reason) record. In PROTEUS, code starts at payload offset `0x140` (the 24 bytes after the
+header are `0xFF` padding); in IBEX it follows the header directly, at payload offset `0x128`.
 
 The nRF52833 has 512 KB of flash (`0x00000`–`0x7FFFF`) and 128 KB of RAM.
 
@@ -108,19 +134,32 @@ Strings in both images give the toolchain away:
 
 - `*** Using nRF Connect SDK v2.9.0-d93dcad627bd ***`
 - `*** Using Zephyr OS v3.7.99-21bb7021858d ***`
-- newlib for `arm-zephyr-eabi`. The source paths embedded in it (`/__w/_temp/workspace/build/.build/…`)
-  come from the prebuilt Zephyr SDK toolchain's own build, not from Valve's build machines.
+- in PROTEUS only, newlib for `arm-zephyr-eabi` (the full library, not newlib-nano). The source
+  paths embedded in it (`/__w/_temp/workspace/build/.build/…`) come from the prebuilt Zephyr SDK
+  toolchain's own build, not from Valve's build machines. They are the paths of the toolchain's
+  Linux build (its Windows build has an extra `HOST-x86_64-w64-mingw32` component there), so
+  Valve used the Linux-hosted Zephyr SDK: the firmware was most likely (*inferred*) built on
+  Linux or under WSL.
 
-The puck firmware also names its per-slot pairing records (`ibex%d_proteus_uuid`,
-`ibex%d_ibex_uuid`, `ibex%d_peer_sn`) and four radio slots (`esb/ibex_0`..`esb/ibex_3`).
-Those are Zephyr settings keys, so pairing data lives in a flash settings partition on the
-chip, not in the `.fw` file.
+Neither commit in those banners exists in Nordic's public repositories: the official v2.9.0
+release is sdk-nrf `7787b2649840` and sdk-zephyr `1f8f3dc29142`. Valve builds from its own forks
+of both. The differences that show in the image (changes to the USB stack and its HID class, two
+backported upstream fixes, a kernel device-state bit, extra sensor channels, and full newlib where
+NCS 2.9 defaults to picolibc) are listed in
+[puck-internals.md](puck-internals.md#software-stack), along with the build configuration.
+
+The puck firmware stores one pairing record per radio slot under the Zephyr settings keys
+`esb/ibex_0`..`esb/ibex_3`: 24 bytes each, `{proteus_uuid, ibex_uuid, controller serial}` (the
+strings `ibex%d_proteus_uuid`, `ibex%d_ibex_uuid` and `ibex%d_peer_sn` are output formats for
+printing them). So pairing data lives in the settings partition on the chip, not in the `.fw`
+file.
 
 ## What the `.fw` file does not contain
 
 - The **bootloader** (flash `0x0000`–`0x7FFF`). The puck's bootloader reported a build time of
   2025-09-23 and was not changed by the update.
-- **UICR** (Nordic's user configuration registers, including debug-port protection settings).
+- **UICR** (Nordic's user configuration registers, including debug-port protection settings; see
+  [puck-internals.md](puck-internals.md#debug-port)).
 - The **settings/pairing partition** and the per-unit serial numbers.
 
 ## Check it yourself
