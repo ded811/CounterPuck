@@ -88,7 +88,9 @@ clean-room firmware will be written from them.
 - [x] Recover the application's load address
 - [x] Map the puck↔controller radio link (Nordic ESB), pairing and the dock behaviour
 - [x] Pin down what Valve changed in its SDK fork, from the machine code
-- [ ] Confirm the radio findings against a real controller
+- [x] Confirm the radio findings against a real controller: on 2026-10-11 a rebuilt firmware on a
+      dev board connected, switched channels and reported link quality as described here
+      ([results](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/docs/09-verification.md#the-radio-link-with-a-real-controller))
 - [ ] Check the debug port read-only: open or locked?
 - [ ] Custom puck hardware: a board in the original's form factor, with charging
 
