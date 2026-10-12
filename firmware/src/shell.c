@@ -92,8 +92,18 @@ static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_trace_output(const struct shell *sh, size_t argc, char **argv)
+{
+	bool on = argc < 2 || strcmp(argv[1], "off") != 0;
+
+	slot_trace_output(on);
+	shell_print(sh, "output report tracing %s", on ? "on" : "off");
+	return 0;
+}
+
 SHELL_CMD_REGISTER(info, NULL, "Serial numbers and build identity", cmd_info);
 SHELL_CMD_REGISTER(bootloader, NULL, "Reboot into the UF2 bootloader (to reflash)", cmd_bootloader);
+SHELL_CMD_REGISTER(trace_output, NULL, "trace_output [off]: log output reports sent to controllers", cmd_trace_output);
 SHELL_CMD_REGISTER(bonds, NULL, "Show the pairing records", cmd_bonds);
 SHELL_CMD_REGISTER(connection, NULL, "Show the state of each slot", cmd_connection);
 SHELL_CMD_ARG_REGISTER(pair, NULL, "pair <slot> [seconds]: open a pairing window", cmd_pair, 2, 1);

@@ -22,4 +22,5 @@ void slot_cancel_pairing(int slot);
 void slot_set_bond(int slot, const struct bond *b);       /* store or delete, then restart the slot */
 const char *slot_state_name(int slot);
 int slot_info(int slot, uint8_t *channels /* 4 */, uint32_t *uptime_s);
+void slot_trace_output(bool on);   /* log every output report (rumble, LEDs) the PC sends */
 void slot_set_qos(int slot, uint16_t interval_ms, bool print);

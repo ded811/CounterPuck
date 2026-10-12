@@ -805,10 +805,19 @@ int slot_feature_get(int slot, uint8_t *body)
 	return rc;
 }
 
+static bool trace_output;
+void slot_trace_output(bool on) { trace_output = on; }
+
 int slot_output_report(int slot, const uint8_t *data, size_t len)
 {
 	struct slot *s = &slots[slot];
 	uint8_t rec[QUEUE_ITEM] = { 0 };
+
+	if (trace_output) {
+		LOG_INF("Slot %d: output report 0x%02X, %u bytes, %s", slot, len ? data[0] : 0, (unsigned int)len,
+			s->state == CONNECTED ? "sent on" : "dropped (not connected)");
+		LOG_HEXDUMP_INF(data, MIN(len, 16), "output report");
+	}
 
 	if (s->state != CONNECTED) {
 		return -EAGAIN;

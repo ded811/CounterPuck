@@ -8,9 +8,12 @@ puck, and your controller pairs and plays.
 > SuperMini nRF52840. A PC sees the same USB device as a puck, answers every vendor command, and
 > a real Steam Controller 2 pairs, connects on protocol 1 and sends input at about 250 reports per
 > second. The button values match the reference build. The background noise scan runs (eight
-> sweeps a second, no effect on the link). Not done yet: sleep/wake behaviour tests, rumble, and a
-> rare "no event from the radio" error seen a few times early on, which the radio code recovers
-> from and which has not come back in over 20 minutes of logging.
+> sweeps a second, no effect on the link). Verified with a real controller: rumble traffic reaches it
+> (Steam sends output reports 0x81, 0x82 and 0x85), and PC sleep and wake work (the controller is
+> switched off when the PC sleeps and reconnects when it wakes). Open: a longer sleep test, and a
+> rare "no event from the radio" error. It shows up now and then while the puck is searching for a
+> controller, mostly just after a start; the radio code recovers from it and the log records the
+> packet it happened on, but the cause is not found.
 
 Build: `.\build.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
 board's drive, or run `bootloader` in the serial shell first.
@@ -51,6 +54,7 @@ Shell commands (serial port, any baud rate, prompt `dongle~$ `):
 | `pair <slot> [seconds]` | open a pairing window |
 | `connection_qos [ms] [1]` | change how often link quality is reported; `1` also prints it |
 | `bootloader` | reboot into the UF2 drive mode |
+| `trace_output [off]` | log every output report (rumble, LEDs) the PC sends to a controller |
 | `factory_restore --really` | forget every pairing and reboot |
 
 Steam's own "update" or "downgrade" for a puck asks the board to reboot into its bootloader. This
