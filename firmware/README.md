@@ -18,6 +18,38 @@ board's drive, or run `bootloader` in the serial shell first.
 This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
 which rebuilds Valve's own firmware for study. Nothing here is derived from that code.
 
+## Using it
+
+1. **Flash.** Put the board in bootloader mode (double-tap its reset button) and copy `zephyr.uf2` onto
+   the drive that appears. To build it yourself: install nRF Connect SDK v2.9.0 (unpatched) and run
+   `.uild.ps1`. Once it runs, `bootloader` in the serial shell (below) reboots into the drive mode
+   without the button.
+2. **Plug it in.** The PC sees the same device as a Steam Controller 2 puck: Steam lists it, and the
+   board's USB serial port carries a shell.
+3. **Pair.** In Steam, add a controller as usual and put the controller into pairing mode. Or, without
+   Steam, run `pair 0` in the shell (a 60 s window on slot 0) and start pairing on the controller.
+   Pairings are kept in flash and survive reflashing.
+4. **Settings.** Serial numbers, USB strings, the build time reported to Steam, the pairing window and
+   the radio power are in [`src/puck_config.h`](src/puck_config.h), each with a comment saying what a
+   real puck uses.
+
+Shell commands (serial port, any baud rate, prompt `dongle~$ `):
+
+| Command | What it does |
+| --- | --- |
+| `info` | serial numbers, revision, build time |
+| `bonds` | the four pairing records |
+| `connection` | each slot's state; channels and uptime when connected |
+| `pair <slot> [seconds]` | open a pairing window |
+| `connection_qos [ms] [1]` | change how often link quality is reported; `1` also prints it |
+| `bootloader` | reboot into the UF2 drive mode |
+| `factory_restore --really` | forget every pairing and reboot |
+
+Steam's own "update" or "downgrade" for a puck asks the board to reboot into its bootloader. This
+board's bootloader does not speak Steam's update protocol, so the request is refused and logged by
+default (`PUCK_STEAM_MAY_REBOOT_TO_BOOTLOADER` in the config header). Steam also sees the board as
+up to date, because it reports a newer build time than Valve's current puck.
+
 ## Goal: behave the same, not be the same
 
 What matters is what a PC and a controller can observe:
