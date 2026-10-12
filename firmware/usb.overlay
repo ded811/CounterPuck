@@ -1,0 +1,57 @@
+/* The USB device: one serial port (the shell) followed by five HID interfaces. Windows and Steam
+ * find the puck's interfaces by this order, so keep it: the class instances are registered sorted by
+ * name, which follows the order of these nodes. Slots 0 to 3 are hid_0 to hid_3, the dock is hid_4.
+ * Each HID interface has an interrupt IN and an interrupt OUT endpoint of 64 bytes. The slots poll
+ * every 2 ms, the dock every 32 ms. */
+/ {
+	chosen {
+		zephyr,shell-uart = &cdc_acm_uart0;
+	};
+
+	hid_0: hid_0 {
+		compatible = "zephyr,hid-device";
+		protocol-code = "none";
+		in-polling-period-us = <2000>;
+		in-report-size = <64>;
+		out-polling-period-us = <2000>;
+		out-report-size = <64>;
+	};
+	hid_1: hid_1 {
+		compatible = "zephyr,hid-device";
+		protocol-code = "none";
+		in-polling-period-us = <2000>;
+		in-report-size = <64>;
+		out-polling-period-us = <2000>;
+		out-report-size = <64>;
+	};
+	hid_2: hid_2 {
+		compatible = "zephyr,hid-device";
+		protocol-code = "none";
+		in-polling-period-us = <2000>;
+		in-report-size = <64>;
+		out-polling-period-us = <2000>;
+		out-report-size = <64>;
+	};
+	hid_3: hid_3 {
+		compatible = "zephyr,hid-device";
+		protocol-code = "none";
+		in-polling-period-us = <2000>;
+		in-report-size = <64>;
+		out-polling-period-us = <2000>;
+		out-report-size = <64>;
+	};
+	hid_4: hid_4 {
+		compatible = "zephyr,hid-device";
+		protocol-code = "none";
+		in-polling-period-us = <32000>;
+		in-report-size = <64>;
+		out-polling-period-us = <32000>;
+		out-report-size = <64>;
+	};
+};
+
+&zephyr_udc0 {
+	cdc_acm_uart0: cdc_acm_uart0 {
+		compatible = "zephyr,cdc-acm-uart";
+	};
+};

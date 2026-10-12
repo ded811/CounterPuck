@@ -36,6 +36,17 @@
 #define PUCK_BUILD_TIME       0x6A628360u
 #define PUCK_GIT_REVISION     "counterpuck"   /* at most 15 characters */
 
+/* ---- Steam updates ------------------------------------------------------------------------ */
+
+/* Steam can ask a puck to reboot into its bootloader (vendor commands 0x90, and 0x95 with a code)
+ * to update or downgrade its firmware. A real puck then talks Valve's update protocol. This
+ * board's bootloader (UF2) does not, so Steam cannot update it; the request would only leave the
+ * board waiting as a USB drive.
+ *   0: ignore Steam's request, and say so in the log (the default). To reflash, use the shell
+ *      command `bootloader`, or double-tap reset.
+ *   1: obey it: the board reboots into the UF2 bootloader, as the request asks. */
+#define PUCK_STEAM_MAY_REBOOT_TO_BOOTLOADER 0
+
 /* ---- Pairing ----------------------------------------------------------------------------------- */
 
 /* How long a pairing window stays open when Steam asks for the default (a real puck: 60 s). */
@@ -43,10 +54,7 @@
 
 /* ---- Radio ------------------------------------------------------------------------------------- */
 
-/* Transmit power in dBm. A real puck uses +6; the nRF52840 supports up to +8. */
+/* Transmit power in dBm: 0, 2, 3, 4, 5, 6, 7 or 8. A real puck uses +6. */
 #define PUCK_TX_POWER_DBM     6
 
-/* ---- Diagnostics -------------------------------------------------------------------------------- */
-
-/* Shell prompt on the serial port. A real puck uses "dongle~$ ". */
-#define PUCK_SHELL_PROMPT     "dongle~$ "
+/* The shell prompt ("dongle~$ ", as on a real puck) is set in prj.conf (CONFIG_SHELL_PROMPT_UART). */

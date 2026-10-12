@@ -4,7 +4,15 @@ An open firmware that makes a **Nordic nRF52840 dev board** behave like a Valve 
 puck, as close as we can get from outside. A stock, vanilla experience: plug it in, Steam sees a
 puck, and your controller pairs and plays.
 
-> **Status: planning.** No firmware code yet. This page fixes the scope so the code can follow it.
+> **Status: first working version (2026-10-11).** It builds on the stock SDK and runs on a
+> SuperMini nRF52840. A PC sees the same USB device as a puck, answers every vendor command, and
+> a real Steam Controller 2 pairs, connects on protocol 1 and sends input at about 250 reports per
+> second. The button values match the reference build. Not done yet: the background noise scan,
+> sleep/wake behaviour tests, rumble, and a rare "no event from the radio" error that the
+> radio code recovers from.
+
+Build: `.uild.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
+board's drive, or run `bootloader` in the serial shell first.
 
 This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
 which rebuilds Valve's own firmware for study. Nothing here is derived from that code.

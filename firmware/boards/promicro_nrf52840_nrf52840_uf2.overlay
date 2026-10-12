@@ -1,0 +1,6 @@
+/* SuperMini / Pro Micro nRF52840 with the Adafruit UF2 bootloader. Settings (pairings) go to the
+ * board's storage partition, just below the bootloader. The board's own UART is not used here: the
+ * shell is on the USB serial port. */
+&uart0 {
+	status = "disabled";
+};
