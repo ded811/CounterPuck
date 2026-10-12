@@ -73,7 +73,7 @@ Details: [firmware-format.md](firmware-format.md).
 ## 4. Unpacking the updater
 
 `hardwareupdater.exe` ends with PyInstaller's archive marker. I wrote a small static
-extractor ([`tools/pyi_extract.py`](../tools/pyi_extract.py)) that lists and unpacks the
+extractor ([`pyi_extract.py`](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/tools/pyi_extract.py), now in the research repository) that lists and unpacks the
 bundle without running anything. Inside is Python 3.14, `hidapi`, `pyserial`, and one
 application script, `hardwareupdater.py`.
 

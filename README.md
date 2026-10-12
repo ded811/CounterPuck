@@ -64,23 +64,21 @@ so you can check every claim against your own Steam install.
 
 ## Tools
 
-All in [tools/](tools/). Python 3.11+ using only the standard library (run with `python -I`),
-PowerShell for the Windows capture side, and four Ghidra scripts (Java, for Ghidra's headless
-analyzer).
+All in [tools/](tools/). Python 3.11+ using only the standard library (run with `python -I`), and
+PowerShell for the Windows capture side. The tools that read Valve's code, the Ghidra scripts and
+the PyInstaller extractor, live in the research repository,
+[steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered/tree/main/tools), next to the 1:1
+firmware rebuild. This repository keeps the behaviour specs and the capture tools, and is where a
+clean-room firmware will be written from them.
 
 | Tool | Purpose |
 | --- | --- |
 | `fw_header.py` | Parse a `.fw` header: product magic, length, CRC32, vector table, entropy |
 | `find_base.py` | Recover a raw image's flash load address from its own string pointers |
-| `pyi_extract.py` | List or extract a PyInstaller bundle without running anything from it |
 | `watch_update.ps1` | Passive, non-admin logger: updater launches, USB re-enumeration, new firmware files |
 | `capture_usb.ps1` | Capture just the puck's USB traffic with USBPcap (needs admin), leaving your keyboard out |
 | `usbpcap_parse.py` | Read USBPcap captures without Wireshark: summary, packet dump, bulk extract, control transfers |
 | `decode_bl_stream.py` | Decode the bootloader messages in a capture, rebuild the image and compare it to the `.fw` file |
-| `GhidraExport.java` | Ghidra headless post-script that exports decompiled C, a function list and strings |
-| `GhidraXrefDump.java` | Writes each function's string and data references, the call graph, and every pointer stored in data (for decoding Zephyr's static tables) to `xrefs.tsv` |
-| `GhidraCreateFunctions.java` | Creates functions at addresses listed in a text file (for example handlers found in Zephyr's tables that auto-analysis missed), then re-runs analysis |
-| `GhidraApplyNames.java` | Applies a JSON naming table of your own (functions, labels, Zephyr `struct device`s), marks flash read-only and types literal-pool pointers so the decompiler shows constants, then re-exports |
 
 ## Status and next steps
 

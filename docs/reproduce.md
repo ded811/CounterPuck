@@ -40,8 +40,12 @@ One base wins by a wide margin: `0x00008000` for build `6A628359`.
 
 ## 3. Look inside the updater (nothing is run)
 
+The extractor lives in the research repository,
+[steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/tools/pyi_extract.py). With a copy
+of it next to this repository:
+
 ```powershell
-python -I tools\pyi_extract.py "$hw\hardwareupdater.exe"
+python -I ..\steam-puck-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe"
 ```
 
 This lists the PyInstaller bundle: Python 3.14, `hid`, `serial` and one script called
@@ -49,7 +53,7 @@ This lists the PyInstaller bundle: Python 3.14, `hid`, `serial` and one script c
 script's code object:
 
 ```powershell
-python -I tools\pyi_extract.py "$hw\hardwareupdater.exe" private\updater-extract
+python -I ..\steam-puck-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe" private\updater-extract
 ```
 
 ## 4. Capture an update
@@ -105,26 +109,10 @@ Replace `5` with your device address. The last lines should read
 
 ## 6. Decompile (optional, keep it local)
 
-The payload is an ordinary Cortex-M image. In [Ghidra](https://ghidra-sre.org/), import it as a
-**raw binary** with language `ARM:LE:32:Cortex` and base address `0x8000`, then run
-auto-analysis. Strip the 32-byte header first, or set the file offset to `0x20`.
+The payload is an ordinary Cortex-M image: import it in [Ghidra](https://ghidra-sre.org/) as a raw
+binary, language `ARM:LE:32:Cortex`, base address `0x8000`. The headless scripts used for this
+project, and how to run them, are in the research repository:
+[tools/ghidra](https://github.com/ded811/steam-puck-reverse-engineered/tree/main/tools/ghidra).
 
-To export everything without the GUI, use the headless analyzer with
-[`tools/GhidraExport.java`](../tools/GhidraExport.java):
-
-```powershell
-& "<ghidra>\support\analyzeHeadless.bat" "$PWD\decomp\project" proteus `
-    -import "$PWD\decomp\proteus_app_0x8000.bin" `
-    -processor ARM:LE:32:Cortex -loader BinaryLoader -loader-baseAddr 0x8000 `
-    -scriptPath "$PWD\tools" -postScript GhidraExport.java "$PWD\decomp\out"
-```
-
-Three more headless scripts in `tools/` help with a deeper pass, each taking its arguments after
-the script name like `GhidraExport.java`: `GhidraCreateFunctions.java` (a text file of addresses,
-one per line, to turn into functions), `GhidraXrefDump.java` (an output folder for `xrefs.tsv`)
-and `GhidraApplyNames.java` (a JSON naming table you write yourself, in the format shown at the
-top of the script, and an output folder for the re-export). What these scripts write is derived
-from the firmware too, so keep it under `decomp/` as well.
-
-Decompiler output is derived from Valve's copyrighted firmware. `decomp/` is gitignored; don't
-publish what's in it.
+Decompiler output is derived from Valve's copyrighted firmware. Keep it on your own computer
+(`decomp/` is gitignored here) and don't publish it.
