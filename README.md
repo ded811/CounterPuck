@@ -22,7 +22,7 @@ puck**, and the research notes about the real puck that it is built from.
 
 A real Steam Controller 2 pairs with it, connects, plays, rumbles, and is switched off and woken with
 the PC's sleep. It is written from observed behaviour, with no Valve code, on the stock nRF Connect
-SDK. **Status: v0.1.0, tested with one controller.** What was verified, the known issues and the
+SDK. **Status: v0.1.1, tested with one controller.** What was verified, the known issues and the
 settings are in the [firmware README](firmware/README.md).
 
 Not built yet: charging and the pogo-pad dock, and custom hardware in the original's shape.
@@ -88,7 +88,7 @@ next to a study rebuild of Valve's own firmware. Nothing here is derived from th
 - [x] Locate the firmware in Steam's files; decode the `.fw` container and the update protocol
 - [x] Capture a live update and confirm the wire image matches the file
 - [x] Map the radio link, pairing and the dock; pin down Valve's SDK changes
-- [x] Open firmware for an nRF52840 dev board, checked against a real controller (v0.1.0)
+- [x] Open firmware for an nRF52840 dev board, checked against a real controller (v0.1.1)
 - [ ] Longer sleep tests, several controllers at once, and the rare radio error in the firmware
 - [ ] Check the debug port, read-only: open or locked? (needs opening the puck, so it waits for the
       hardware work)
