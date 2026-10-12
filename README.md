@@ -91,7 +91,8 @@ clean-room firmware will be written from them.
 - [x] Confirm the radio findings against a real controller: on 2026-10-11 a rebuilt firmware on a
       dev board connected, switched channels and reported link quality as described here
       ([results](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/docs/09-verification.md#the-radio-link-with-a-real-controller))
-- [ ] Check the debug port read-only: open or locked?
+- [ ] Check the debug port read-only: open or locked? (later, together with the custom hardware
+      work, since it means opening the puck)
 - [ ] Custom puck hardware: a board in the original's form factor, with charging
 
 [OpenPuck](https://github.com/safijari/openpuck) already makes an off-the-shelf nRF52840 Pro
