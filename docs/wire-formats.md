@@ -68,7 +68,9 @@ destination bit:
 
 Sending: one `0x45` after every record received, the one on the lowest-numbered connected slot that
 has sent a half-report. With nothing received for a second, a neutral report (everything but ID and
-sequence zero) is sent.
+sequence zero) is sent. When that controller's link ends, a neutral report goes to its interface too, so
+the PC is not left holding its last buttons and sticks. The same neutral report ends a link whose
+controller sent finished `0x45` reports itself (as the controller used for testing does).
 
 ## Link status 0x79 and link quality 0x7B
 

@@ -52,9 +52,13 @@ static bool iface_ready[NUM_IFACES];
 static bool host_suspended_last[NUM_IFACES] = { true, true, true, true, true };
 static bool bus_suspended;
 static struct k_mutex submit_lock[NUM_IFACES];
-/* One input report per interface can be on its way to the host at a time; this is given when the host
- * has taken it. It starts "free". */
+/* Up to REPORT_RING input reports per interface can be on their way to the host at once (the class
+ * sends straight from our buffers). The semaphore counts the free ones and is given as the host takes
+ * each report, in the order they were queued. */
+#define REPORT_RING 8
 static struct k_sem report_free[NUM_IFACES];
+static uint8_t report_ring[NUM_IFACES][REPORT_RING][64] __aligned(4);
+static uint8_t report_head[NUM_IFACES];
 
 static int iface_of(const struct device *dev)
 {
@@ -87,7 +91,10 @@ static void on_iface_ready(const struct device *dev, const bool ready)
 			/* A report that was in flight when the bus went quiet may never be reported as
 			 * done: start over with the buffer free. */
 			k_sem_reset(&report_free[i]);
-			k_sem_give(&report_free[i]);
+			for (int n = 0; n < REPORT_RING; n++) {
+				k_sem_give(&report_free[i]);
+			}
+			report_head[i] = 0;
 		}
 		refresh_host_state(i);
 	}
@@ -177,9 +184,9 @@ static void on_output_report(const struct device *dev, const uint16_t len, const
 	}
 }
 
-/* Reports are sent without waiting for the host (input_report_done tells when one is gone). A slot
- * thread must never sit waiting for a PC that has stopped listening, for example one that is asleep:
- * the controller would lose its link. */
+/* Reports are sent without ever waiting for the host (input_report_done tells when one is gone). A slot
+ * thread must never sit waiting for a PC that is slow or has stopped listening, for example one that
+ * is asleep: the controller would lose its link. */
 static const struct hid_device_ops hid_ops = {
 	.iface_ready = on_iface_ready,
 	.get_report = on_get_report,
@@ -191,22 +198,25 @@ static const struct hid_device_ops hid_ops = {
 int usb_submit_input(int iface, const uint8_t *report, uint16_t len)
 {
 	/* The class needs a word-aligned buffer; copy so callers may pass anything. */
-	static uint8_t buf[NUM_IFACES][64] __aligned(4);
 	int err;
 
-	if (iface < 0 || iface >= NUM_IFACES || len == 0 || len > sizeof(buf[0])) {
+	if (iface < 0 || iface >= NUM_IFACES || len == 0 || len > sizeof(report_ring[0][0])) {
 		return -EINVAL;
 	}
 	k_mutex_lock(&submit_lock[iface], K_FOREVER);
 	if (!iface_ready[iface] || bus_suspended) {
 		err = -EACCES;
-	} else if (k_sem_take(&report_free[iface], K_MSEC(20)) != 0) {
-		err = -EBUSY;        /* the host has not taken the last report: drop this one */
+	} else if (k_sem_take(&report_free[iface], K_NO_WAIT) != 0) {
+		err = -EBUSY;        /* all buffers are still waiting for the host: drop this report */
 	} else {
-		memcpy(buf[iface], report, len);
-		err = hid_device_submit_report(hid_dev[iface], len, buf[iface]);
+		uint8_t *slot = report_ring[iface][report_head[iface]];
+
+		memcpy(slot, report, len);
+		err = hid_device_submit_report(hid_dev[iface], len, slot);
 		if (err) {
 			k_sem_give(&report_free[iface]);
+		} else {
+			report_head[iface] = (report_head[iface] + 1) % REPORT_RING;
 		}
 	}
 	k_mutex_unlock(&submit_lock[iface]);
@@ -233,7 +243,7 @@ int usb_start(void)
 	memcpy(serial_text, identity_serial(), sizeof(serial_text));
 	for (int i = 0; i < NUM_IFACES; i++) {
 		k_mutex_init(&submit_lock[i]);
-		k_sem_init(&report_free[i], 1, 1);
+		k_sem_init(&report_free[i], REPORT_RING, REPORT_RING);
 		desc = i < NUM_SLOTS ? hid_desc_slot(&len) : hid_desc_dock(&len);
 		err = hid_device_register(hid_dev[i], desc, len, &hid_ops);
 		if (err) {

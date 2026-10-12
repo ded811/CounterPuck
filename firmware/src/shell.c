@@ -92,6 +92,16 @@ static int cmd_bootloader(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+static int cmd_records(const struct shell *sh, size_t argc, char **argv)
+{
+	for (int id = 0; id < 0x80; id++) {
+		if (slot_input_count(id)) {
+			shell_print(sh, "input report 0x%02X: %u records", id, slot_input_count(id));
+		}
+	}
+	return 0;
+}
+
 static int cmd_trace_output(const struct shell *sh, size_t argc, char **argv)
 {
 	bool on = argc < 2 || strcmp(argv[1], "off") != 0;
@@ -101,6 +111,7 @@ static int cmd_trace_output(const struct shell *sh, size_t argc, char **argv)
 	return 0;
 }
 
+SHELL_CMD_REGISTER(records, NULL, "Count the input report records controllers have sent", cmd_records);
 SHELL_CMD_REGISTER(info, NULL, "Serial numbers and build identity", cmd_info);
 SHELL_CMD_REGISTER(bootloader, NULL, "Reboot into the UF2 bootloader (to reflash)", cmd_bootloader);
 SHELL_CMD_REGISTER(trace_output, NULL, "trace_output [off]: log output reports sent to controllers", cmd_trace_output);

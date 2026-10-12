@@ -60,12 +60,19 @@ void channels_add(int slot, uint8_t channel, int ok, int bad)
 	k_mutex_unlock(&map_lock);
 }
 
-/* Penalty for a channel that is `d` dB noisier than the quietest: about 0.067 d^2 + 3.1 d, up to
- * about 1100 at 109 dB. */
+/* Penalty for a channel that is `d` dB noisier than the quietest. A curve that starts gently and
+ * steepens to a straight line, measured against the reference behaviour at every tenth dB and
+ * joined by straight lines: 0 at 0 dB, 31 at 10, 89 at 20, 164 at 30, 252 at 40, 353 at 50,
+ * 464 at 60, 585 at 70, 715 at 80, 853 at 90, 1000 at 100 and 1137 at 109. */
 static int noise_penalty(int d)
 {
-	d = MIN(d, 109);
-	return (d * (67 * d + 3100)) / 1000;
+	static const int at_tens[] = { 0, 31, 89, 164, 252, 353, 464, 585, 715, 853, 1000 };
+
+	d = CLAMP(d, 0, 109);
+	if (d >= 100) {
+		return 1000 + (d - 100) * 137 / 9;
+	}
+	return at_tens[d / 10] + (at_tens[d / 10 + 1] - at_tens[d / 10]) * (d % 10) / 10;
 }
 
 uint8_t channels_pick(int slot, uint8_t current)
@@ -111,10 +118,9 @@ static void decay(struct k_timer *t)
 {
 	for (int s = 0; s < NUM_SLOTS; s++) {
 		for (int ch = FIRST_CHANNEL; ch <= LAST_CHANNEL; ch += 2) {
-			/* shrink the counters themselves, or the next update would bring the old rate back */
-			map[s][ch].bad = map[s][ch].bad * 9 / 10;
-			map[s][ch].ok = map[s][ch].ok * 9 / 10;
-			recompute(&map[s][ch]);
+			/* the stored rate shrinks; the counters are left alone, and the next update of this
+			 * channel works the rate out from them again */
+			map[s][ch].rate_permille = map[s][ch].rate_permille * 9 / 10;
 		}
 	}
 }

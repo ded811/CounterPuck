@@ -60,6 +60,8 @@ struct slot {
 	enum state last_logged;           /* so "idle" is logged once per visit */
 	bool host_suspended;
 	bool send_version, tell_host_asleep, tell_turn_off, wake_blocked;
+	bool forwarded_45;                /* this connection passed finished 0x45 reports on to the PC */
+	uint8_t last_45_seq;
 	uint8_t protocol;                 /* the controller's protocol version */
 	uint8_t pairing_seconds;
 	uint8_t channel[4];               /* current channel, then alternates (0xFF = none) */
@@ -83,6 +85,9 @@ struct slot {
 };
 
 static struct slot slots[NUM_SLOTS];
+static uint32_t input_seen[0x80];   /* input report records received from controllers, by report ID */
+
+uint32_t slot_input_count(uint8_t id) { return id < sizeof(input_seen) / sizeof(input_seen[0]) ? input_seen[id] : 0; }
 K_THREAD_STACK_ARRAY_DEFINE(slot_stacks, NUM_SLOTS, 3072);
 
 static uint32_t wait_events(struct slot *s, k_timeout_t timeout)
@@ -111,6 +116,14 @@ static void release_keys_and_buttons(struct slot *s)
 
 	(void)usb_submit_input(s->index, kb, sizeof(kb));
 	(void)usb_submit_input(s->index, mouse, sizeof(mouse));
+	if (s->forwarded_45) {
+		/* A controller that sends finished 0x45 reports is gone: end with a neutral one (only the ID and
+		 * the next sequence number set), or the PC keeps its last buttons and sticks held. */
+		uint8_t neutral[1 + 45] __aligned(4) = { RPT_COMBINED, (uint8_t)(s->last_45_seq + 1) };
+
+		(void)usb_submit_input(s->index, neutral, sizeof(neutral));
+		s->forwarded_45 = false;
+	}
 }
 
 /* The keyboard emulation may only press Enter, Escape, Tab and the arrow keys, and no modifiers. */
@@ -189,6 +202,10 @@ static void handle_record(struct slot *s, const uint8_t *rec)
 	case REC_INPUT_REPORT: {
 		uint8_t id = data[0];
 
+		if (id < sizeof(input_seen)) {
+			input_seen[id]++;
+		}
+
 		if (id == 0x60 || id == 0x61) {
 			if (len >= 20) {
 				combiner_half(s->index, data);
@@ -196,6 +213,10 @@ static void handle_record(struct slot *s, const uint8_t *rec)
 		} else if (id >= RPT_MOUSE && id <= RPT_COMBINED && hid_input_len(id) + 1 == len) {
 			if (id != RPT_KEYBOARD || keyboard_report_allowed(data)) {
 				(void)usb_submit_input(s->index, data, len);
+				if (id == RPT_COMBINED) {
+					s->forwarded_45 = true;
+					s->last_45_seq = data[1];
+				}
 			}
 		}
 		break;
@@ -488,7 +509,8 @@ static void do_connecting(struct slot *s)
 	struct esb_payload tx;
 	int tries = 250;
 	uint8_t attempt = 0;
-	k_timeout_t period = K_MSEC(4);
+	int64_t period_ms = 4;                /* 250 attempts at 4 ms, then one every 100 ms */
+	int64_t next_ms = k_uptime_get();     /* attempts start on a steady clock, the first at once */
 
 	LOG_INF("Slot %d: connecting to %.16s", s->index, b->controller_serial);
 	radio_bump_prefix(s->pipe);
@@ -496,7 +518,8 @@ static void do_connecting(struct slot *s)
 	s->channel[1] = s->channel[2] = s->channel[3] = 0xFF;
 
 	for (;;) {
-		uint32_t ev = wait_events(s, period);
+		int64_t wait_ms = next_ms - k_uptime_get();
+		uint32_t ev = wait_events(s, wait_ms > 0 ? K_MSEC(wait_ms) : K_NO_WAIT);
 
 		if (ev & EV_STOP) {
 			s->state = after_stop(s);
@@ -530,9 +553,13 @@ static void do_connecting(struct slot *s)
 			return;
 		}
 		if (--tries == 0) {
-			period = K_MSEC(100);     /* after about a second of fast tries, slow down */
+			period_ms = 100;          /* after about a second of fast tries, slow down */
 		}
 		attempt++;
+		next_ms += period_ms;
+		if (next_ms < k_uptime_get()) {
+			next_ms = k_uptime_get(); /* an attempt that ran long does not make up for it */
+		}
 	}
 }
 
@@ -557,7 +584,7 @@ static void do_connected(struct slot *s)
 	s->send_version = true;
 	s->protocol = 0;
 	fr_reset(s);
-	combiner_reset(s->index);
+	combiner_release(s->index);
 	s->connected_at_ms = k_uptime_get();
 	s->history = 0;
 	s->last_ack_ms = 0;
@@ -648,8 +675,8 @@ static void do_connected(struct slot *s)
 	k_timer_stop(&s->timer);
 leave:
 	release_keys_and_buttons(s);
+	combiner_release(s->index);
 	send_status(s, 1);
-	combiner_reset(s->index);
 	s->send_version = s->tell_host_asleep = s->tell_turn_off = false;
 }
 
