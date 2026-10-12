@@ -8,8 +8,8 @@ puck, and your controller pairs and plays.
 > SuperMini nRF52840. A PC sees the same USB device as a puck, answers every vendor command, and
 > a real Steam Controller 2 pairs, connects on protocol 1 and sends input at about 250 reports per
 > second. The button values match the reference build. The background noise scan runs (eight
-> sweeps a second, no effect on the link). Verified with a real controller: rumble traffic reaches it
-> (Steam sends output reports 0x81, 0x82 and 0x85), and PC sleep and wake work (the controller is
+> sweeps a second, no effect on the link). Verified with a real controller: rumble works
+> (Steam sends output reports 0x81, 0x82 and 0x85 and the controller vibrates), and PC sleep and wake work (the controller is
 > switched off when the PC sleeps and reconnects when it wakes). Open: a longer sleep test, and a
 > rare "no event from the radio" error. It shows up now and then while the puck is searching for a
 > controller, mostly just after a start; the radio code recovers from it and the log records the
@@ -20,6 +20,20 @@ board's drive, or run `bootloader` in the serial shell first.
 
 This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
 which rebuilds Valve's own firmware for study. Nothing here is derived from that code.
+
+## Before you use it
+
+- **Unofficial.** Not made, endorsed or supported by Valve. Steam, Steam Controller and the Valve
+  logo are trademarks of Valve Corporation. The firmware is written from observed behaviour and
+  contains no Valve code.
+- **It uses Valve's USB IDs.** Steam finds a puck by its vendor and product ID (`28DE:1304`), so
+  the board has to present them to work with Steam at all. Those IDs belong to Valve. This is meant
+  for personal use and research on your own hardware: do not sell boards that present them, and
+  expect Windows and Steam to treat the board as a puck.
+- **At your own risk.** It runs on a dev board you can reflash at any time. It has not been tried on
+  a real puck, and nothing here is meant for one.
+- **Licences.** MIT for what is written here; the image also contains Zephyr, Nordic's ESB library
+  and other SDK code under their own licences ([THIRD_PARTY.md](THIRD_PARTY.md)).
 
 ## Known issue
 

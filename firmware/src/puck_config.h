@@ -34,7 +34,7 @@
  * current puck build is 0x6A628359. Use a NEWER value than that so Steam never offers to replace
  * this firmware with Valve's; use an older one only if you want it to. */
 #define PUCK_BUILD_TIME       0x6A628360u
-#define PUCK_GIT_REVISION     "counterpuck"   /* at most 15 characters */
+#define PUCK_GIT_REVISION     "counterpuck-0.1"   /* at most 15 characters */
 
 /* ---- Steam updates ------------------------------------------------------------------------ */
 

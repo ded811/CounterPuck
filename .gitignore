@@ -61,3 +61,6 @@ __pycache__/
 venv/
 # Zephyr / build directories (for the future firmware)
 build/
+
+# Built release files (uploaded to GitHub Releases, not committed)
+release/
