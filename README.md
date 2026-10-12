@@ -89,7 +89,6 @@ next to a study rebuild of Valve's own firmware. Nothing here is derived from th
 - [x] Capture a live update and confirm the wire image matches the file
 - [x] Map the radio link, pairing and the dock; pin down Valve's SDK changes
 - [x] Open firmware for an nRF52840 dev board, checked against a real controller (v0.1.0)
-- [ ] Longer sleep tests, several controllers at once, and the rare radio error in the firmware
 - [ ] Check the debug port, read-only: open or locked? (needs opening the puck, so it waits for the
       hardware work)
 - [ ] Custom hardware: a board in the original's shape, with the dock and charging
