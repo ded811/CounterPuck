@@ -1,16 +1,36 @@
 # Counterpuck
 
-Notes and tools from taking apart how the **Valve Steam Controller 2 puck** gets its
-firmware: the small USB dongle that pairs with, and charges, the 2026 Steam Controller.
+Two things about the **Valve Steam Controller 2 puck**, the small USB dongle that pairs with, and
+charges, the 2026 Steam Controller:
 
-The short version: Steam keeps the puck's firmware on your PC, unencrypted, and updates it
-with a small Python program over a simple serial protocol. This repo documents where the
-files are, what format they're in, and how the update works byte by byte. It includes scripts
-so you can check every claim against your own Steam install.
+- an **open firmware** that makes an nRF52840 dev board behave like a puck, and
+- the **research notes and tools** from taking apart how the puck works and gets its firmware.
 
-**Where this is going:** an open firmware that makes an nRF52840 dev board behave like a Steam
-Controller 2 puck, as close to the real one as we can observe, with no Valve code in it. Charging
-and custom hardware come later. Plan and scope: [firmware/](firmware/README.md).
+## The firmware
+
+[`firmware/`](firmware/README.md) is an original, MIT-licensed firmware for a SuperMini / Pro Micro
+nRF52840 board. Plug it in and Steam sees a puck; a real Steam Controller 2 pairs with it, connects,
+plays, rumbles, and is switched off and woken with the PC's sleep. It is written from observed
+behaviour, with no Valve code, on the stock nRF Connect SDK.
+
+- **Get it:** the latest `.uf2` is on the [Releases page](https://github.com/ded811/Counterpuck/releases).
+  Double-tap the board's reset button and copy the file onto the drive that appears.
+- **Status:** v0.1.0, tested with one controller. Known issues and what was verified are in the
+  [firmware README](firmware/README.md).
+- **Not yet:** charging and the pogo-pad dock, and custom hardware in the original's shape. Those
+  come later.
+- **Unofficial.** It presents Valve's USB IDs so Steam recognises it, which makes it a personal and
+  research tool, not a product. Read the notes in the firmware README first.
+
+Its sister project [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered)
+rebuilds Valve's own firmware for study; nothing here is derived from it.
+
+## The research
+
+Steam keeps the puck's firmware on your PC, unencrypted, and updates it with a small Python
+program over a simple serial protocol. The notes below document where the files are, what format
+they're in, and how the update works byte by byte. They include scripts so you can check every
+claim against your own Steam install.
 
 > **Not affiliated with Valve.** Independent interoperability research on hardware I own. No
 > Valve firmware, software or captures are included; see [Scope and ethics](#scope-and-ethics).
@@ -95,6 +115,8 @@ clean-room firmware will be written from them.
 - [x] Confirm the radio findings against a real controller: on 2026-10-11 a rebuilt firmware on a
       dev board connected, switched channels and reported link quality as described here
       ([results](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/docs/09-verification.md#the-radio-link-with-a-real-controller))
+- [x] Open firmware for an nRF52840 dev board: v0.1.0, pairs, plays, rumbles, sleeps and wakes with a real
+      controller ([firmware/](firmware/README.md))
 - [ ] Check the debug port read-only: open or locked? (later, together with the custom hardware
       work, since it means opening the puck)
 - [ ] Custom puck hardware: a board in the original's form factor, with charging
@@ -112,9 +134,12 @@ that: a purpose-made board with the dock and charging the original has.
   modified firmware was sent to the puck, and the bootloader's checks were not probed.
 - **No defeating chip protection.** The nRF52833 has debug read-out protection; this project
   won't try to get around it. It doesn't need to, since the application firmware comes from Steam.
-- **Clone firmware will be original work**, not Valve's image.
+- **The firmware is original work**, written from observed behaviour and documented in
+  [docs/wire-formats.md](docs/wire-formats.md), not Valve's image. It is a specification-driven
+  rewrite rather than a strict clean room, as its README says.
 
 ## Licence
 
-Code in `tools/` is [MIT](LICENSE). Documentation (`docs/` and this README) is
-[CC BY 4.0](LICENSE-docs).
+Code in `tools/` and the firmware in `firmware/` are [MIT](LICENSE); a built firmware image also
+contains SDK code under its own licences ([firmware/THIRD_PARTY.md](firmware/THIRD_PARTY.md)).
+Documentation (`docs/` and this README) is [CC BY 4.0](LICENSE-docs).
