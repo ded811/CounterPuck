@@ -18,6 +18,14 @@ board's drive, or run `bootloader` in the serial shell first.
 This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
 which rebuilds Valve's own firmware for study. Nothing here is derived from that code.
 
+## Known issue
+
+After the PC has slept and woken, the serial shell stays silent until the board is rebooted or
+replugged. The USB device and the controller link are unaffected: after two short PC sleeps the
+controller was still connected and sending about 250 reports per second. Valve's puck ships
+changes to Zephyr's shell and serial class that look aimed at this; this firmware uses the stock
+ones.
+
 ## Using it
 
 1. **Flash.** Put the board in bootloader mode (double-tap its reset button) and copy `zephyr.uf2` onto
