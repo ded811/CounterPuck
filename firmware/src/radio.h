@@ -31,6 +31,10 @@ int radio_start(void);
 int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload *rx,
 		   const uint8_t *base);
 
+/* Listen on `channel` for a moment and take `n` signal strength samples (each a positive number of dB
+ * below 0 dBm: bigger means quieter). Waits for any transaction in progress. */
+void radio_sample_rssi(uint8_t channel, uint8_t *out, int n);
+
 /* This puck's own base address (random, chosen at every start) and the pipe prefixes. */
 const uint8_t *radio_own_address(void);
 uint8_t radio_prefix(int pipe);

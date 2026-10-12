@@ -37,6 +37,7 @@ int main(void)
 		return err;
 	}
 	LOG_INF("Radio started");
+	channels_start_scan();
 
 	LOG_INF("Starting Counterpuck %s, build time 0x%08X", identity_revision(),
 		identity_build_time());

@@ -4,6 +4,7 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/irq.h>
 #include <zephyr/random/random.h>
 #include <zephyr/drivers/clock_control.h>
 #include <zephyr/drivers/clock_control/nrf_clock_control.h>
@@ -140,7 +141,8 @@ int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload 
 
 	/* Wait up to 20 ms for the radio to report. */
 	if (k_sem_take(&esb_event, K_MSEC(20)) || err) {
-		LOG_ERR("No event from ESB (setup error %d), forcing the radio off", err);
+		LOG_ERR("No event from ESB (setup %d): type 0x%02X pipe %u noack %u channel %u, seen 0x%X",
+			err, tx->data[0], tx->pipe, tx->noack, channel, esb_seen);
 		nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
 		k_busy_wait(1);
 		esb_flush_tx();   /* a packet left in the queue would make every later write fail */
@@ -176,6 +178,41 @@ int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload 
 	}
 	k_mutex_unlock(&radio_lock);
 	return result;
+}
+
+void radio_sample_rssi(uint8_t channel, uint8_t *out, int n)
+{
+	/* With the radio idle and its interrupt held off, tune to the channel, start receiving, and
+	 * read the signal strength n times, then put everything back as ESB expects it. */
+	k_mutex_lock(&radio_lock, K_FOREVER);
+	irq_disable(RADIO_IRQn);
+	uint32_t shorts = nrf_radio_shorts_get(NRF_RADIO);
+
+	nrf_radio_shorts_set(NRF_RADIO, NRF_RADIO_SHORT_READY_START_MASK |
+					NRF_RADIO_SHORT_DISABLED_RSSISTOP_MASK);
+	nrf_radio_frequency_set(NRF_RADIO, 2400 + channel);
+	nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RXEN);
+	while (nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_RX) {
+	}
+	for (int i = 0; i < n; i++) {
+		nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND);
+		nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RSSISTART);
+		while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND)) {
+		}
+		out[i] = nrf_radio_rssi_sample_get(NRF_RADIO) & 0x7F;
+	}
+	nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
+	while (nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_DISABLED) {
+	}
+	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND);
+	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_READY);
+	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_ADDRESS);
+	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_END);
+	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_DISABLED);
+	nrf_radio_shorts_set(NRF_RADIO, shorts);
+	NVIC_ClearPendingIRQ(RADIO_IRQn);
+	irq_enable(RADIO_IRQn);
+	k_mutex_unlock(&radio_lock);
 }
 
 int32_t radio_backoff_us(void)

@@ -7,9 +7,10 @@ puck, and your controller pairs and plays.
 > **Status: first working version (2026-10-11).** It builds on the stock SDK and runs on a
 > SuperMini nRF52840. A PC sees the same USB device as a puck, answers every vendor command, and
 > a real Steam Controller 2 pairs, connects on protocol 1 and sends input at about 250 reports per
-> second. The button values match the reference build. Not done yet: the background noise scan,
-> sleep/wake behaviour tests, rumble, and a rare "no event from the radio" error that the
-> radio code recovers from.
+> second. The button values match the reference build. The background noise scan runs (eight
+> sweeps a second, no effect on the link). Not done yet: sleep/wake behaviour tests, rumble, and a
+> rare "no event from the radio" error seen a few times early on, which the radio code recovers
+> from and which has not come back in over 20 minutes of logging.
 
 Build: `.\build.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
 board's drive, or run `bootloader` in the serial shell first.
