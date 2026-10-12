@@ -11,7 +11,7 @@ puck, and your controller pairs and plays.
 > sleep/wake behaviour tests, rumble, and a rare "no event from the radio" error that the
 > radio code recovers from.
 
-Build: `.uild.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
+Build: `.\build.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
 board's drive, or run `bootloader` in the serial shell first.
 
 This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
