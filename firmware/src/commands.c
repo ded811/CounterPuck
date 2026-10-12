@@ -158,6 +158,9 @@ static int set_bond(int iface, const uint8_t *payload, uint8_t len)
 	if (iface >= NUM_SLOTS) {
 		return 0;
 	}
+	if (len != sizeof(b)) {
+		return -EINVAL;
+	}
 	memcpy(&b, payload, sizeof(b));
 	slot_set_bond(iface, &b);
 	return 0;
@@ -183,9 +186,9 @@ static int set_dock_input(int iface, const uint8_t *payload, uint8_t len)
 
 static int set_factory_reset(int iface, const uint8_t *payload, uint8_t len)
 {
-	uint32_t magic;
+	uint32_t magic = 0;
 
-	memcpy(&magic, payload, 4);
+	memcpy(&magic, payload, MIN(len, 4));
 	if (magic == FACTORY_RESET_MAGIC) {
 		LOG_INF("Factory reset");
 		k_work_schedule(&factory_work, K_MSEC(10));
@@ -208,9 +211,9 @@ static int bootloader_request(void)
 
 static int set_reboot(int iface, const uint8_t *payload, uint8_t len)
 {
-	uint32_t magic;
+	uint32_t magic = 0;
 
-	memcpy(&magic, payload, 4);
+	memcpy(&magic, payload, MIN(len, 4));
 	if (magic == BOOTLOADER_MAGIC_REBOOT) {
 		return bootloader_request();
 	} else {

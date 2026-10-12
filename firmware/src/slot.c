@@ -87,12 +87,12 @@ K_THREAD_STACK_ARRAY_DEFINE(slot_stacks, NUM_SLOTS, 3072);
 
 static uint32_t wait_events(struct slot *s, k_timeout_t timeout)
 {
-	uint32_t got = k_event_wait(&s->events, 0xFFFFFFFFu, false, timeout);
-
-	if (got) {
-		k_event_clear(&s->events, got);
+	/* Clearing returns what was set, in one step: an event posted between the wait and the clear is
+	 * still reported, never lost. */
+	if (!k_event_wait(&s->events, 0xFFFFFFFFu, false, timeout)) {
+		return 0;
 	}
-	return got;
+	return k_event_clear(&s->events, 0xFFFFFFFFu);
 }
 
 /* ---- reports to the PC ------------------------------------------------------------------- */
@@ -228,7 +228,7 @@ static void handle_reply(struct slot *s, const struct esb_payload *rx, bool *gon
 		*gone = true;
 		break;
 	case PKT_CONTROLLER_PROTO:
-		if (d[1] < 2) {
+		if (rx->length >= 2 && d[1] < 2) {
 			s->protocol = d[1];
 			LOG_INF("Slot %d: protocol version %u", s->index, d[1]);
 			if (s->protocol) {
@@ -308,6 +308,7 @@ static int exchange(struct slot *s)
 	bool gone = false, alternate = false;
 	int64_t entry = k_uptime_get();
 	int rc = -1, answered_on = -1, misses = 0, next = 0;
+	uint32_t carried = 0;   /* records in this packet; they leave the queue once it is acknowledged */
 
 	if (s->send_version) {
 		radio_build_version(&tx, s->pipe, 1);
@@ -322,8 +323,9 @@ static int exchange(struct slot *s)
 		uint8_t rec[QUEUE_ITEM + 2];
 
 		radio_build_simple(&tx, s->pipe, PKT_KEEPALIVE);
-		while (k_msgq_peek(&s->queue, rec) == 0 && radio_append(&tx, rec, rec[0] + 2) == 0) {
-			k_msgq_get(&s->queue, rec, K_NO_WAIT);
+		while (k_msgq_peek_at(&s->queue, rec, carried) == 0 &&
+		       radio_append(&tx, rec, rec[0] + 2) == 0) {
+			carried++;
 		}
 	}
 
@@ -369,6 +371,11 @@ static int exchange(struct slot *s)
 
 	int64_t now = k_uptime_get();
 
+	for (; carried; carried--) {
+		uint8_t discard[QUEUE_ITEM];
+
+		k_msgq_get(&s->queue, discard, K_NO_WAIT);
+	}
 	s->ok++;
 	s->rssi_sum += rx.rssi;
 	if (s->last_ack_ms && now - s->last_ack_ms > s->max_gap_ms) {
@@ -410,6 +417,8 @@ static int exchange(struct slot *s)
 	}
 	return 0;
 }
+
+static enum state after_stop(struct slot *s);
 
 /* ---- the states ---------------------------------------------------------------------------- */
 
@@ -457,7 +466,7 @@ static void do_pairing(struct slot *s)
 				memcpy(b.controller_serial, &rx.data[5], 16);
 				bond_set(s->index, &b);
 				LOG_INF("Slot %d: paired", s->index);
-				s->state = CONNECTING;
+				s->state = after_stop(s);   /* CONNECTING, unless the record could not be kept */
 				send_status(s, 3);
 				return;
 			}
@@ -465,7 +474,7 @@ static void do_pairing(struct slot *s)
 		}
 	}
 	LOG_INF("Slot %d: pairing failed", s->index);
-	s->state = IDLE;
+	s->state = after_stop(s);   /* a pairing set by command meanwhile still counts */
 }
 
 static enum state after_stop(struct slot *s)
@@ -570,7 +579,7 @@ static void do_connected(struct slot *s)
 			if (ev & EV_HOST_RESUMED) {
 				break;
 			}
-			if (ev & EV_TIMER) {
+			if ((ev & EV_TIMER) && s->host_suspended) {
 				LOG_WRN("Slot %d: the PC did not wake up", s->index);
 				s->tell_host_asleep = true;
 				k_timer_stop(&s->timer);
@@ -605,7 +614,7 @@ static void do_connected(struct slot *s)
 		if (ev & EV_HOST_RESUMED) {
 			k_timer_stop(&s->timer);
 		}
-		if (ev & EV_TIMER) {
+		if ((ev & EV_TIMER) && s->host_suspended) {
 			/* The PC has been asleep for 2 s: tell the controller to switch off. */
 			LOG_INF("Slot %d: the PC is asleep, turning the controller off", s->index);
 			s->tell_turn_off = true;
@@ -738,8 +747,11 @@ int slot_feature_set(int slot, const uint8_t *body)
 	struct slot *s = &slots[slot];
 	uint8_t rec[QUEUE_ITEM] = { 0 };
 	int rc = -EAGAIN;
-	uint8_t len = MIN((unsigned int)body[1] + 2, FEATURE_BODY_LEN);
+	uint8_t len = body[1] + 2;
 
+	if (len > FEATURE_BODY_LEN) {
+		return -EINVAL;
+	}
 	k_mutex_lock(&s->fr_lock, K_FOREVER);
 	if (s->state == CONNECTED) {
 		fr_reset(s);
@@ -815,7 +827,7 @@ bool slot_connected(int slot) { return slots[slot].state == CONNECTED; }
 
 void slot_start_pairing(int slot, uint8_t seconds)
 {
-	slots[slot].pairing_seconds = seconds;
+	slots[slot].pairing_seconds = seconds ? seconds : 1;   /* 0 would end the window at once */
 	k_event_post(&slots[slot].events, EV_PAIR);
 }
 

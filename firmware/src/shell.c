@@ -50,13 +50,13 @@ static int cmd_connection(const struct shell *sh, size_t argc, char **argv)
 static int cmd_pair(const struct shell *sh, size_t argc, char **argv)
 {
 	int slot = atoi(argv[1]);
-	int seconds = argc > 2 ? atoi(argv[2]) : 0;
+	int seconds = argc > 2 ? CLAMP(atoi(argv[2]), 1, 255) : 60;
 
 	if (slot < 0 || slot >= NUM_SLOTS) {
 		shell_error(sh, "slot must be 0 to %d", NUM_SLOTS - 1);
 		return -EINVAL;
 	}
-	slot_start_pairing(slot, seconds ? seconds : 60);
+	slot_start_pairing(slot, seconds);
 	shell_print(sh, "slot %d: pairing window opened", slot);
 	return 0;
 }

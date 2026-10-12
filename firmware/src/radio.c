@@ -111,6 +111,11 @@ int radio_start(void)
 	return 0;
 }
 
+/* Flash writes stall the CPU, long enough to make a radio transaction time out: hold the radio
+ * (no transaction can start) around them. */
+void radio_hold(void) { k_mutex_lock(&radio_lock, K_FOREVER); }
+void radio_release(void) { k_mutex_unlock(&radio_lock); }
+
 const uint8_t *radio_own_address(void) { return own_base; }
 uint8_t radio_prefix(int pipe) { return prefixes[pipe]; }
 
@@ -123,6 +128,20 @@ void radio_bump_prefix(int pipe)
 	k_mutex_unlock(&radio_lock);
 }
 
+/* Wait for ESB to be idle, for at most 5 ms; if it is not by then the radio is stuck, so reset. */
+static void wait_idle_or_reset(void)
+{
+	int64_t start = k_uptime_get();
+
+	while (!esb_is_idle()) {
+		if (k_uptime_get() - start >= 5) {
+			LOG_ERR("The radio is stuck, resetting");
+			NVIC_SystemReset();
+		}
+		k_busy_wait(50);
+	}
+}
+
 int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload *rx,
 		   const uint8_t *base)
 {
@@ -131,6 +150,7 @@ int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload 
 	rx->length = 0;
 	k_mutex_lock(&radio_lock, K_FOREVER);
 	k_sem_take(&esb_event, K_NO_WAIT);   /* drop a stale wake-up */
+	esb_flush_rx();                      /* and any acknowledgement payload nobody read */
 
 	err = esb_set_rf_channel(channel);
 	if (base) {
@@ -139,22 +159,16 @@ int radio_transact(uint32_t channel, struct esb_payload *tx, struct esb_payload 
 	esb_seen = 0;
 	err |= esb_write_payload(tx);        /* goes out at once */
 
-	/* Wait up to 20 ms for the radio to report. */
-	if (k_sem_take(&esb_event, K_MSEC(20)) || err) {
+	/* Wait up to 20 ms for the radio to report (not at all if it could not even be set up). */
+	if (err || k_sem_take(&esb_event, K_MSEC(20))) {
 		LOG_ERR("No event from ESB (setup %d): type 0x%02X pipe %u noack %u channel %u, seen 0x%X",
 			err, tx->data[0], tx->pipe, tx->noack, channel, esb_seen);
 		nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
-		k_busy_wait(1);
+		wait_idle_or_reset();
 		esb_flush_tx();   /* a packet left in the queue would make every later write fail */
-		if (!esb_is_idle()) {
-			LOG_ERR("The radio is stuck, resetting");
-			k_busy_wait(100);
-			NVIC_SystemReset();
-		}
+		esb_flush_rx();
 	}
-	while (!esb_is_idle()) {
-		/* the acknowledgement payload event follows the success event */
-	}
+	wait_idle_or_reset();   /* the acknowledgement payload event follows the success event */
 
 	if (esb_seen & BIT(ESB_EVENT_RX_RECEIVED)) {
 		esb_read_rx_payload(rx);
@@ -187,23 +201,45 @@ void radio_sample_rssi(uint8_t channel, uint8_t *out, int n)
 	k_mutex_lock(&radio_lock, K_FOREVER);
 	irq_disable(RADIO_IRQn);
 	uint32_t shorts = nrf_radio_shorts_get(NRF_RADIO);
+	uint32_t addresses = nrf_radio_rxaddresses_get(NRF_RADIO);
+	bool ok = true;
 
+	memset(out, 0x7F, n);                    /* "nothing heard" if the scan has to give up */
+	nrf_radio_rxaddresses_set(NRF_RADIO, 0); /* no packet may match while scanning */
 	nrf_radio_shorts_set(NRF_RADIO, NRF_RADIO_SHORT_READY_START_MASK |
 					NRF_RADIO_SHORT_DISABLED_RSSISTOP_MASK);
 	nrf_radio_frequency_set(NRF_RADIO, 2400 + channel);
 	nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RXEN);
-	while (nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_RX) {
+	for (int spin = 0; nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_RX; spin++) {
+		if (spin > 2000) {
+			ok = false;
+			break;
+		}
+		k_busy_wait(1);
 	}
-	for (int i = 0; i < n; i++) {
+	for (int i = 0; ok && i < n; i++) {
 		nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND);
 		nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_RSSISTART);
-		while (!nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND)) {
+		for (int spin = 0; !nrf_radio_event_check(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND); spin++) {
+			if (spin > 2000) {
+				ok = false;
+				break;
+			}
+			k_busy_wait(1);
 		}
-		out[i] = nrf_radio_rssi_sample_get(NRF_RADIO) & 0x7F;
+		if (ok) {
+			out[i] = nrf_radio_rssi_sample_get(NRF_RADIO) & 0x7F;
+		}
 	}
 	nrf_radio_task_trigger(NRF_RADIO, NRF_RADIO_TASK_DISABLE);
-	while (nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_DISABLED) {
+	for (int spin = 0; nrf_radio_state_get(NRF_RADIO) != NRF_RADIO_STATE_DISABLED; spin++) {
+		if (spin > 2000) {
+			LOG_ERR("The radio did not stop after a noise scan");
+			break;
+		}
+		k_busy_wait(1);
 	}
+	nrf_radio_rxaddresses_set(NRF_RADIO, addresses);
 	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_RSSIEND);
 	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_READY);
 	nrf_radio_event_clear(NRF_RADIO, NRF_RADIO_EVENT_ADDRESS);

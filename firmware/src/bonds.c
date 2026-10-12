@@ -5,7 +5,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/settings/settings.h>
 #include "bonds.h"
+#include "radio.h"
+#include <zephyr/logging/log.h>
 #include "usb.h"
+
+LOG_MODULE_REGISTER(bonds, LOG_LEVEL_INF);
 
 static struct bond records[NUM_SLOTS];
 
@@ -48,13 +52,19 @@ int bond_set(int slot, const struct bond *b)
 	int err;
 
 	snprintf(key, sizeof(key), "puck/bond%d", slot);
+	/* The record in memory is what counts for this session; the flash copy keeps it across reboots. */
+	radio_hold();   /* a flash write stalls the CPU: no radio transaction may be in flight */
 	if (!bond_valid(b)) {
 		memset(&records[slot], 0, sizeof(records[slot]));
-		return settings_delete(key);
-	}
-	err = settings_save_one(key, b, sizeof(*b));
-	if (err == 0) {
+		err = settings_delete(key);
+	} else {
 		records[slot] = *b;
+		err = settings_save_one(key, b, sizeof(*b));
+	}
+	radio_release();
+	if (err) {
+		LOG_ERR("Storing the pairing of slot %d failed (%d): it is lost when the puck restarts",
+			slot, err);
 	}
 	return err;
 }

@@ -40,6 +40,11 @@ const uint8_t *radio_own_address(void);
 uint8_t radio_prefix(int pipe);
 void radio_bump_prefix(int pipe);
 
+/* Keep every transaction off the radio while the caller does something that stalls the CPU (a flash
+ * write). */
+void radio_hold(void);
+void radio_release(void);
+
 /* A short random pause to sleep after a lost packet, in microseconds. */
 int32_t radio_backoff_us(void);
 

@@ -111,7 +111,10 @@ static void decay(struct k_timer *t)
 {
 	for (int s = 0; s < NUM_SLOTS; s++) {
 		for (int ch = FIRST_CHANNEL; ch <= LAST_CHANNEL; ch += 2) {
-			map[s][ch].rate_permille = map[s][ch].rate_permille * 9 / 10;
+			/* shrink the counters themselves, or the next update would bring the old rate back */
+			map[s][ch].bad = map[s][ch].bad * 9 / 10;
+			map[s][ch].ok = map[s][ch].ok * 9 / 10;
+			recompute(&map[s][ch]);
 		}
 	}
 }

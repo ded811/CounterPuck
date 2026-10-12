@@ -132,6 +132,9 @@ static int on_get_report(const struct device *dev, const uint8_t type, const uin
 	if (i < 0 || type != HID_REPORT_TYPE_FEATURE) {
 		return -ENOTSUP;
 	}
+	if (len < FEATURE_BODY_LEN + 1) {
+		return -EINVAL;
+	}
 	if (id == RPT_FEATURE_COMMAND) {
 		err = commands_get(i, buf + 1);
 	} else if (id == RPT_FEATURE_PASSTHROUGH) {
