@@ -8,6 +8,10 @@ with a small Python program over a simple serial protocol. This repo documents w
 files are, what format they're in, and how the update works byte by byte. It includes scripts
 so you can check every claim against your own Steam install.
 
+**Where this is going:** an open firmware that makes an nRF52840 dev board behave like a Steam
+Controller 2 puck, as close to the real one as we can observe, with no Valve code in it. Charging
+and custom hardware come later. Plan and scope: [firmware/](firmware/README.md).
+
 > **Not affiliated with Valve.** Independent interoperability research on hardware I own. No
 > Valve firmware, software or captures are included; see [Scope and ethics](#scope-and-ethics).
 
