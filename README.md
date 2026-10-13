@@ -22,7 +22,7 @@ puck**, and the research notes about the real puck that it is built from.
 
 A real Steam Controller 2 pairs with it, connects, plays, rumbles, and is switched off and woken with
 the PC's sleep. It is written from observed behaviour, with no Valve code, on the stock nRF Connect
-SDK. **Status: v0.1.1, tested with one controller.** What was verified, the known issues and the
+SDK. **Status: v0.1.2, tested with one controller.** What was verified, the known issues and the
 settings are in the [firmware README](firmware/README.md).
 
 Not built yet: charging and the pogo-pad dock, and custom hardware in the original's shape.

@@ -53,7 +53,9 @@ ones.
    board's USB serial port carries a shell.
 3. **Pair.** In Steam, add a controller as usual and put the controller into pairing mode. Or, without
    Steam, run `pair 0` in the shell (a 60 s window on slot 0) and start pairing on the controller.
-   Pairings are kept in flash and survive reflashing.
+   Pairings are kept in flash and survive reflashing. Not yet tested: pairing a controller that already
+   runs the July 2026 controller firmware (`0x6A628345`), which may no longer pair over the air.
+   Controllers paired before that update keep working.
 4. **Settings.** Serial numbers, USB strings, the build time reported to Steam, the pairing window and
    the radio power are in [`src/puck_config.h`](src/puck_config.h), each with a comment saying what a
    real puck uses.
