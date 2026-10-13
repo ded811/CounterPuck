@@ -69,8 +69,10 @@ destination bit:
 Sending: one `0x45` after every record received, the one on the lowest-numbered connected slot that
 has sent a half-report. With nothing received for a second, a neutral report (everything but ID and
 sequence zero) is sent. When that controller's link ends, a neutral report goes to its interface too, so
-the PC is not left holding its last buttons and sticks. The same neutral report ends a link whose
-controller sent finished `0x45` reports itself (as the controller used for testing does).
+the PC is not left holding its last buttons and sticks. A link whose controller sent finished state
+reports itself ends the same way, with a neutral report of the same ID: `0x42` (53 bytes, what
+controller firmware `0x6A628345` sends, checked 2026-10-12) or `0x45` (what the earlier controller
+firmware `0x6A18D057` sent).
 
 ## Link status 0x79 and link quality 0x7B
 
@@ -146,4 +148,4 @@ Command replies are `02 <opcode> <length> <data>`. The commands are listed in
 
 ## Timing
 
-See the timing summary in [docs/04 of the research repository](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/docs/04-radio.md#timing-summary).
+See the timing summary in [docs/04 of the research repository](https://github.com/ded811/steam-controller-2-reverse-engineered/blob/main/docs/puck/04-radio.md#timing-summary).

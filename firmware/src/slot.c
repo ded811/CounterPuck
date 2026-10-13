@@ -60,8 +60,8 @@ struct slot {
 	enum state last_logged;           /* so "idle" is logged once per visit */
 	bool host_suspended;
 	bool send_version, tell_host_asleep, tell_turn_off, wake_blocked;
-	bool forwarded_45;                /* this connection passed finished 0x45 reports on to the PC */
-	uint8_t last_45_seq;
+	bool forwarded_state[2];          /* this connection passed finished state reports on to the PC */
+	uint8_t last_state_seq[2];        /* (index as in state_ids) */
 	uint8_t protocol;                 /* the controller's protocol version */
 	uint8_t pairing_seconds;
 	uint8_t channel[4];               /* current channel, then alternates (0xFF = none) */
@@ -86,6 +86,10 @@ struct slot {
 
 static struct slot slots[NUM_SLOTS];
 static uint32_t input_seen[0x80];   /* input report records received from controllers, by report ID */
+
+/* Finished controller state reports, both with a sequence number in byte 1: 0x42 from current
+ * controller firmware, 0x45 from earlier firmware. */
+static const uint8_t state_ids[2] = { RPT_STATE, RPT_COMBINED };
 
 uint32_t slot_input_count(uint8_t id) { return id < sizeof(input_seen) / sizeof(input_seen[0]) ? input_seen[id] : 0; }
 K_THREAD_STACK_ARRAY_DEFINE(slot_stacks, NUM_SLOTS, 3072);
@@ -116,13 +120,19 @@ static void release_keys_and_buttons(struct slot *s)
 
 	(void)usb_submit_input(s->index, kb, sizeof(kb));
 	(void)usb_submit_input(s->index, mouse, sizeof(mouse));
-	if (s->forwarded_45) {
-		/* A controller that sends finished 0x45 reports is gone: end with a neutral one (only the ID and
-		 * the next sequence number set), or the PC keeps its last buttons and sticks held. */
-		uint8_t neutral[1 + 45] __aligned(4) = { RPT_COMBINED, (uint8_t)(s->last_45_seq + 1) };
+	for (int i = 0; i < ARRAY_SIZE(state_ids); i++) {
+		/* A controller that sends finished state reports is gone: end with a neutral one (only the ID
+		 * and the next sequence number set), or the PC keeps its last buttons and sticks held. */
+		uint8_t neutral[1 + 53] __aligned(4) = { 0 };
+		uint8_t id = state_ids[i];
 
-		(void)usb_submit_input(s->index, neutral, sizeof(neutral));
-		s->forwarded_45 = false;
+		if (!s->forwarded_state[i]) {
+			continue;
+		}
+		neutral[0] = id;
+		neutral[1] = (uint8_t)(s->last_state_seq[i] + 1);
+		(void)usb_submit_input(s->index, neutral, 1 + hid_input_len(id));
+		s->forwarded_state[i] = false;
 	}
 }
 
@@ -213,9 +223,11 @@ static void handle_record(struct slot *s, const uint8_t *rec)
 		} else if (id >= RPT_MOUSE && id <= RPT_COMBINED && hid_input_len(id) + 1 == len) {
 			if (id != RPT_KEYBOARD || keyboard_report_allowed(data)) {
 				(void)usb_submit_input(s->index, data, len);
-				if (id == RPT_COMBINED) {
-					s->forwarded_45 = true;
-					s->last_45_seq = data[1];
+				for (int i = 0; i < ARRAY_SIZE(state_ids); i++) {
+					if (id == state_ids[i]) {
+						s->forwarded_state[i] = true;
+						s->last_state_seq[i] = data[1];
+					}
 				}
 			}
 		}
