@@ -80,7 +80,7 @@ PowerShell for the Windows capture side.
 | `decode_bl_stream.py` | Decode the bootloader messages in a capture and rebuild the image |
 
 The tools that read Valve's code (Ghidra scripts, the PyInstaller extractor) live in the sister
-repository, [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
+repository, [steam-controller-2-reverse-engineered](https://github.com/ded811/steam-controller-2-reverse-engineered),
 next to a study rebuild of Valve's own firmware. Nothing here is derived from that code.
 
 ## Roadmap

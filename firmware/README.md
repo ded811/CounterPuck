@@ -18,7 +18,7 @@ puck, and your controller pairs and plays.
 Build: `.\build.ps1` (needs a stock nRF Connect SDK v2.9.0). Flash: copy `zephyr.uf2` onto the
 board's drive, or run `bootloader` in the serial shell first.
 
-This is a different project from [steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered),
+This is a different project from [steam-controller-2-reverse-engineered](https://github.com/ded811/steam-controller-2-reverse-engineered),
 which rebuilds Valve's own firmware for study. Nothing here is derived from that code.
 
 ## Before you use it

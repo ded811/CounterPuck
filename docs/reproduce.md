@@ -41,11 +41,11 @@ One base wins by a wide margin: `0x00008000` for build `6A628359`.
 ## 3. Look inside the updater (nothing is run)
 
 The extractor lives in the research repository,
-[steam-puck-reverse-engineered](https://github.com/ded811/steam-puck-reverse-engineered/blob/main/tools/pyi_extract.py). With a copy
+[steam-controller-2-reverse-engineered](https://github.com/ded811/steam-controller-2-reverse-engineered/blob/main/tools/pyi_extract.py). With a copy
 of it next to this repository:
 
 ```powershell
-python -I ..\steam-puck-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe"
+python -I ..\steam-controller-2-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe"
 ```
 
 This lists the PyInstaller bundle: Python 3.14, `hid`, `serial` and one script called
@@ -53,7 +53,7 @@ This lists the PyInstaller bundle: Python 3.14, `hid`, `serial` and one script c
 script's code object:
 
 ```powershell
-python -I ..\steam-puck-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe" private\updater-extract
+python -I ..\steam-controller-2-reverse-engineered\tools\pyi_extract.py "$hw\hardwareupdater.exe" private\updater-extract
 ```
 
 ## 4. Capture an update
@@ -112,7 +112,7 @@ Replace `5` with your device address. The last lines should read
 The payload is an ordinary Cortex-M image: import it in [Ghidra](https://ghidra-sre.org/) as a raw
 binary, language `ARM:LE:32:Cortex`, base address `0x8000`. The headless scripts used for this
 project, and how to run them, are in the research repository:
-[tools/ghidra](https://github.com/ded811/steam-puck-reverse-engineered/tree/main/tools/ghidra).
+[tools/ghidra](https://github.com/ded811/steam-controller-2-reverse-engineered/tree/main/tools/ghidra).
 
 Decompiler output is derived from Valve's copyrighted firmware. Keep it on your own computer
 (`decomp/` is gitignored here) and don't publish it.
