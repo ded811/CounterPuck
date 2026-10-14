@@ -178,13 +178,40 @@ The same analysis gives the pin map, power setup and memory split that a compati
 and it shows that the app leaves the debug port the way the factory configured it
 ([puck-internals.md](puck-internals.md#hardware-for-compatible-boards)).
 
+## 8. The controller
+
+On 2026-10-12 Steam had an update for the controller too: from build `0x6A18D057` (2026-05-28,
+exactly the "must update" floor in `hardwareupdater.cfg`) to `0x6A628345`, the
+`IBEX_FW_6A628345.fw` sitting next to the puck's file.
+
+- **It only updates over its USB cable.** The updater has no wireless path for the controller
+  (its program paths are "Triton USB" and "Triton in bootloader"). Plugged in, the controller is
+  `28DE:1302` ("Steam Controller", HID only).
+- **Its bootloader is `28DE:1005`.** Steam ran `hardwareupdater.exe --update-by-serial`, the
+  controller left as `28DE:1302` and came back about 20 seconds later after a stay as `28DE:1005`,
+  a USB composite device with a serial port, like the puck's `28DE:1007`. The updater uses one
+  flashing routine for both, so the bootloader protocol is very probably the same; the controller's
+  wire traffic was not captured (the capture script picked the wrong device; fixed since).
+- **The image is the same kind of file.** Same 32-byte container with the controller's own
+  magic `0xD2D86467`, plaintext, an nRF52833 Zephyr app at `0x8000` behind a bootloader, built from
+  the same SDK commits and the same git revision as the puck's.
+- **What changed for a puck.** Over the radio, the updated controller sends its state as report
+  `0x42` instead of `0x45`, which the open firmware handles since v0.1.2. Reading the new image also
+  suggests the controller no longer takes part in pairing over the air, with new pairings
+  arriving through vendor commands instead (over the cable or the puck's dock); not yet tested.
+
+How the controller firmware works, and a rebuild of it, are in the research repository:
+[docs/controller/](https://github.com/ded811/steam-controller-2-reverse-engineered/blob/main/docs/controller/README.md).
+
 ## What's still open
 
 - **Bootloader checks.** The file and the messages carry a magic, a length and a CRC32, and no
   signature. Whether the bootloader checks anything more isn't known. I haven't tested it, and
   I won't with the only puck I have.
 - **The `0x12` byte** that follows every message ID from the host.
-- **`28DE:1005`.** It's presumably the controller's bootloader, but unconfirmed.
+- **The controller's bootloader protocol.** `28DE:1005` is confirmed as the controller's
+  bootloader (section 8), but its traffic was not captured; that it matches the puck's is an
+  inference from the updater.
 - **The debug port.** The app leaves it as UICR says
   ([puck-internals.md](puck-internals.md#debug-port)). Whether the factory left it open needs a
   read-only probe, which I haven't connected.

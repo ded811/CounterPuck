@@ -130,6 +130,24 @@ received before marking the image valid; this is inferred, not observed.
 
 Bytes 36–75 match the updater's `struct.unpack('<II16s16s', …)`.
 
+## The controller
+
+Seen on 2026-10-12, when Steam updated a controller from `0x6A18D057` to `0x6A628345`, from a
+passive log of USB devices and processes (the USB traffic itself was not captured):
+
+| Step | What happened |
+| --- | --- |
+| App mode | The controller on its USB cable is `28DE:1302`, one HID interface. The update needs the cable: the updater has no path for a controller connected over the puck or Bluetooth. |
+| Start | Steam runs `hardwareupdater.exe --update-by-serial <controller serial>`. |
+| Bootloader | Within half a second `28DE:1302` leaves and `28DE:1005` arrives: a USB composite device with a CDC serial port, the controller's counterpart of the puck's `28DE:1007`. |
+| Back | About 20 seconds later `28DE:1005` leaves and `28DE:1302` returns, reporting the new build. |
+
+The updater's code has one flashing routine for both devices ("UPDATING TRITON IN BL" and
+"UPDATING PROTEUS IN BL" share it), so the bootloader stage is very probably the same protocol as
+above, with the controller's own product magic `0xD2D86467` in the `.fw` header (inferred, not
+seen on the wire). The controller's firmware has two vendor commands that request its bootloader:
+`0x90`, as the puck's, and `0x95` with a magic value.
+
 ## Open questions
 
 - What the constant `0x12` after each host message ID means.

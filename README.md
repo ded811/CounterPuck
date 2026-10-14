@@ -42,6 +42,11 @@ each was reached is in [docs/writeup.md](docs/writeup.md).
   messages. The wire bytes equal the `.fw` file. There is no signature, only a magic number, a length
   and a CRC32. (Whether the bootloader checks more is untested: I won't send modified images to
   the only puck I have.)
+- **The controller works the same way.** Its firmware (`IBEX_FW_<build>.fw`) sits next to the
+  puck's, in the same container, unencrypted. It is updated only over its USB cable, through its
+  own bootloader `28DE:1005`. Since its July 2026 update it sends its state to the puck as report
+  `0x42`. How it works inside, and a rebuild of it, are in the
+  [research repository](https://github.com/ded811/steam-controller-2-reverse-engineered/blob/main/docs/controller/README.md).
 - **The updater is a bundled Python script** (`hardwareupdater.exe`: PyInstaller, Python 3.14,
   hidapi, pyserial). Its strings lay out the whole update flow.
 - **The radio link and the vendor commands are documented**: 12 HID commands (pairing is `0xAD`),
