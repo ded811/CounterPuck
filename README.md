@@ -80,7 +80,7 @@ PowerShell for the Windows capture side.
 | `fw_header.py` | Parse a `.fw` header: magic, length, CRC32, vector table, entropy |
 | `find_base.py` | Recover a raw image's load address from its own string pointers |
 | `watch_update.ps1` | Passive logger of updater launches, USB re-enumeration and new firmware files |
-| `capture_usb.ps1` | Capture just the puck's USB traffic with USBPcap (admin needed) |
+| `capture_usb.ps1` | Capture just the puck's (or, with `-Target Controller`, the controller's) USB traffic with USBPcap (admin needed) |
 | `usbpcap_parse.py` | Read USBPcap captures without Wireshark |
 | `decode_bl_stream.py` | Decode the bootloader messages in a capture and rebuild the image |
 
